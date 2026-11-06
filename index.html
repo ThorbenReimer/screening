@@ -13,8 +13,8 @@
   --bg:#161E2E; --mid:#1E2D45; --sep:#2A3A55; --accent:#378ADD; --light:#7AB8F5;
   --text:#FFFFFF; --body:#D0DCE8; --muted:#7A9CC0; --red:#E2574C; --green:#3FB27F;
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;min-width:0}
+html,body{margin:0;padding:0;-webkit-text-size-adjust:100%;text-size-adjust:100%;overflow-x:hidden;width:100%}
 body{
   background:var(--bg); color:var(--body);
   font-family:Calibri,"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
@@ -94,6 +94,24 @@ textarea{min-height:44px;resize:vertical}
 .saveitem button{padding:7px 10px;font-size:13px;min-height:auto}
 .mini{font-size:12px;color:var(--muted)}
 details summary{cursor:pointer;color:var(--light);font-weight:600;margin:2px 0}
+/* Narrow phones */
+@media (max-width:460px){
+  .wrap{padding:10px 10px 120px}
+  header .ttl{font-size:16px;line-height:1.05}
+  header .sub{font-size:11px}
+  header img{height:34px}
+  .badge{font-size:11px;padding:4px 7px}
+  .grid{grid-template-columns:1fr}            /* Kundendaten einspaltig */
+  .addon .agrid{grid-template-columns:1fr}    /* IR/AR einspaltig */
+  .addbox .arow{grid-template-columns:1fr}
+  .seg{min-width:0;gap:5px}
+  .seg button{font-size:16px;padding:6px 2px}
+  .seg.pf button{font-size:13px}
+  .noteline{flex-direction:column}
+  .noteline select,.noteline input{min-width:0;width:100%}
+  .row{gap:8px}
+  .totalbar .val{font-size:26px}
+}
 /* Print */
 @media print{
   :root{--bg:#fff;--mid:#fff;--sep:#c9d4e0;--text:#12202e;--body:#22303f;--muted:#5e7284}
