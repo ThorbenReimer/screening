@@ -48,6 +48,8 @@ input,select,textarea{font-family:inherit;font-size:15px;background:var(--bg);co
 select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237A9CC0' stroke-width='2' fill='none'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
 textarea{min-height:44px;resize:vertical}
+input[type=date]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%;width:100%}
+input[type=date]::-webkit-date-and-time-value{text-align:left}
 /* Test block */
 .test{background:var(--mid);border:1px solid var(--sep);border-radius:12px;margin:12px 0;overflow:hidden}
 .test>.thead{display:flex;align-items:center;gap:8px;padding:11px 12px;background:#20314c;border-left:4px solid var(--accent)}
@@ -93,6 +95,13 @@ textarea{min-height:44px;resize:vertical}
 .saveitem .dt{color:var(--muted);font-size:12px}
 .saveitem button{padding:7px 10px;font-size:13px;min-height:auto}
 .mini{font-size:12px;color:var(--muted)}
+/* Summary */
+.sumgrp{margin:0 0 10px;border:1px solid var(--sep);border-radius:9px;overflow:hidden}
+.sumhd{display:flex;align-items:center;justify-content:space-between;background:#20314c;padding:8px 11px;font-weight:700;color:var(--text);font-size:14px;border-left:4px solid var(--accent)}
+.sumhd .svsub{font-family:Georgia,serif;color:var(--light);font-size:16px}
+.sumrow{display:flex;align-items:center;justify-content:space-between;padding:7px 11px;border-top:1px solid var(--sep);color:var(--body);font-size:14px;gap:10px}
+.sumrow .sv{font-family:Georgia,serif;color:var(--text);font-weight:600;flex:none}
+.sumtotal{display:flex;align-items:center;justify-content:space-between;background:var(--accent);color:#fff;border-radius:9px;padding:12px 14px;font-family:Georgia,serif;font-size:18px;font-weight:bold;margin-top:4px}
 details summary{cursor:pointer;color:var(--light);font-weight:600;margin:2px 0}
 /* Narrow phones */
 @media (max-width:460px){
@@ -163,6 +172,9 @@ details summary{cursor:pointer;color:var(--light);font-weight:600;margin:2px 0}
   <p class="hint">Bei beidseitigen Tests zählt der niedrigere Wert (L/R) ins Ergebnis. Rote Clearing-Tests: bei „positiv" wird der zugehörige Test automatisch auf 0 gesetzt.</p>
 
   <div id="testsHost"></div>
+
+  <!-- Auswertung -->
+  <div class="card" id="summaryHost"></div>
 
   <!-- Add custom test -->
   <div class="card">
@@ -353,6 +365,50 @@ function pfPositive(t){
   return v.R==='pos'||v.L==='pos';
 }
 
+function clearingZero(id){ return MAIN.some(ct=>ct.clearing&&ct.affects===id&&pfPositive(ct)); }
+function effResult(t){
+  if(t.clearing||t.kind==='text') return null;
+  let r=testResult(t);
+  if(r!==null && clearingZero(t.id)) r=0;
+  return r;
+}
+function cleanName(n){ return n.replace(/^\d+\s*·\s*/,''); }
+
+// Auswertungs-Gruppen (Reihenfolge: Beweglichkeit → Stabilität → Funktion)
+const SUMMARY_GROUPS = [
+  {label:'Beweglichkeit', ids:['shoulder','aslr']},
+  {label:'Stabilität',    ids:['tspu','rotary']},
+  {label:'Funktion',      ids:['lunge','hurdle','squat']},
+];
+
+function renderSummary(){
+  const host=document.getElementById('summaryHost'); if(!host) return;
+  let html=''; let grand=0, grandComplete=true;
+  SUMMARY_GROUPS.forEach(g=>{
+    let sub=0, subComplete=true, rows='';
+    g.ids.forEach(id=>{
+      const t=BUILTIN.find(x=>x.id===id); if(!t) return;
+      const r=effResult(t);
+      rows+=`<div class="sumrow"><span>${cleanName(t.name)}</span><span class="sv">${r===null?'–':r}</span></div>`;
+      if(r===null) subComplete=false; else sub+=r;
+    });
+    if(!subComplete) grandComplete=false; else grand+=sub;
+    html+=`<div class="sumgrp"><div class="sumhd">${g.label}<span class="svsub">${subComplete?sub:'–'}</span></div>${rows}</div>`;
+  });
+  // Zusatztests separat
+  const extras=[...EXTRA, ...((state.custom)||[])];
+  let exRows='';
+  extras.forEach(t=>{
+    if(t.kind==='text'){ const n=state.notes[t.id]||{}; const v=(n.txt||n.sel||'').trim(); exRows+=`<div class="sumrow"><span>${cleanName(t.name)}</span><span class="sv">${v||'–'}</span></div>`; }
+    else { const r=effResult(t); exRows+=`<div class="sumrow"><span>${cleanName(t.name)}</span><span class="sv">${r===null?'–':r}</span></div>`; }
+  });
+  let out=`<h2>Auswertung – Übersicht</h2>${html}
+    <div class="sumtotal"><span>FMS Gesamt</span><span>${grandComplete?grand:grand+' *'} / 21</span></div>`;
+  if(!grandComplete) out+=`<p class="hint">* noch nicht alle 7 Tests bewertet – Summe der bereits erfassten Tests.</p>`;
+  if(exRows) out+=`<div class="sumgrp" style="margin-top:10px"><div class="sumhd">Zusatztests <span class="svsub" style="font-size:11px;color:var(--muted)">eigene Zuordnung</span></div>${exRows}</div>`;
+  host.innerHTML=out;
+}
+
 function recalc(){
   // apply clearing zeroing
   MAIN.filter(t=>t.clearing&&t.affects).forEach(ct=>{
@@ -366,18 +422,16 @@ function recalc(){
   MAIN.filter(t=>t.clearing&&!t.affects).forEach(ct=>{
     const w=document.getElementById('warn_'+ct.id); if(w) w.classList.toggle('show',pfPositive(ct));
   });
-  let total=0, counted=true;
+  let total=0;
   allTests().forEach(t=>{
     if(t.clearing||t.kind==='text') return;
     const scEl=document.getElementById('sc_'+t.id); if(!scEl) return;
-    let res=testResult(t);
-    if(scEl.dataset.zero==='1') res=0;
+    const res=effResult(t);
     scEl.textContent = (res===null)?'–':res;
-    if(SCORE_IDS.includes(t.id)){
-      if(res===null) counted=false; else total+=res;
-    }
+    if(SCORE_IDS.includes(t.id) && res!==null) total+=res;
   });
   document.getElementById('totalVal').textContent = total;
+  renderSummary();
 }
 
 // ---------- Persistence ----------
